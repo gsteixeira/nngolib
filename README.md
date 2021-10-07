@@ -1,4 +1,4 @@
-# NNPyLib - A simple Neural Network Go library
+# NNGoLib - A simple Neural Network Go library
 
 NNGolib is a simplistic neural network library for Go.
 
