@@ -44,7 +44,6 @@ func relu(x float64) float64 {
     } else {
         return 0
     }
-        
 }
 
 // The derivative of Leaky Relu function

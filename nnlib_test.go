@@ -1,3 +1,8 @@
+// This is part of the module NNgolib
+//
+// This tests the basic functionality of the NN
+//
+
 package nngolib
 
 import (
@@ -49,5 +54,23 @@ func TestNeuralNetwork(t *testing.T) {
         t.Log("input: ", inputs[i],
               "predicted:", predicted,
               "output:", outputs[i])
+    }
+}
+
+// Tests the exporting and inporting of the NN into/from json
+func TestNNPersistance(t *testing.T) {
+    // declare a generic network
+    nn := NewNeuralNetwork(5, 3, []int {4,}, "sigmoid")
+    data := Dump_nn(nn)
+    nn2 := Load_nn(data)
+    for i := range nn.Input_layer.Values {
+        if nn.Input_layer.Values[i] != nn2.Input_layer.Values[i] {
+            t.Errorf("Got different values!")
+        }
+    }
+    for i := range nn.Input_layer.Bias {
+        if nn.Input_layer.Bias[i] != nn2.Input_layer.Bias[i] {
+            t.Errorf("Got different values!")
+        }
     }
 }

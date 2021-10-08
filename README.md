@@ -12,36 +12,55 @@ Yet it provides a working reliable neural network that can be used in your appli
 
 - Support for multiple hidden layers.
 - Configurable non linear function. Supports: **sigmoid**, **relu**, **leaky relu** and **tanh**
-- (comming soon) Will be possible to persist the network state, so once trained you can store it and use without training again.
+- It is possible to persist the network state, so once trained you can store it and use without training again.
 
 ## Instalation
+
+If you want to use it:
 
 ```shell
     go get github.com/gsteixeira/nngolib
 ```
 
-Try the code
+If you want to play with it:
+
 ```shell
     git clone https://github.com/gsteixeira/nngolib
     cd nngolib
     go mod tidy
     go run sample/sample.go
     go test
-```    
-    
+```
+
 ## usage
+
+Create a Neural Network by telling the sizes of *input layer*, the *output layer*, and a list with the sizes of each of the *hidden layers*. Usually you will only need one, so declare an array of one position.
 
 ```go
     import "github.com/gsteixeira/nngolib"
     ...
+    input_size := len(input_data[0]) // the size of input layer
+    output_size := len(expected_output[0]) // the size of output layer
+    hidden_layers := []int {4,} // the sizes of each of the hidden layers
     // create the network topology
-    nn := nngolib.NewNeuralNetwork(len(inputs[0]),
-                                   len(outputs[0]),
-                                   []int {4,},
+    nn := nngolib.NewNeuralNetwork(input_size,
+                                   output_size,
+                                   hidden_layers,
                                    "leaky_relu")
-    // train the network
-    nn.train(inputs, outputs, iteractions)
+    // train the network (10 thousand times)
+    nn.train(input_data, expected_output, 10000)
     // Make predictions
-    predicted = nn.predict(inputs[i])
+    predicted = nn.predict(input_data[x])
 ```
 
+Now you can save your network's state and reuse it later.
+
+```go
+    // dump the network state
+    data := nngolib.Dump_nn(nn)
+    // You can save that to a file or db.
+    // Now create a new network from the saved data
+    nn2 := nngolib.Load_nn(data)
+    // make predictions with the saved network
+    predicted = nn.predict(foo)
+```

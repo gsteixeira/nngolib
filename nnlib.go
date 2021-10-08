@@ -1,84 +1,101 @@
 // A simple feed forward XOR neural network in Go
 //
-//  features:
-//    - Allows multiple hidden layers
-//    - configurable non linear method: sigmoid, relu, and leaky_relu
-// 
-// Author: Gustavo Selbach Teixeira
+//   Author: Gustavo Selbach Teixeira
 //
+//  features:
+//    - Allows multiple hidden layers.
+//    - configurable non linear method: sigmoid, relu, and leaky_relu.
+//    - dump and restore the network data for later use.
+// 
 
 package nngolib
 
 import (
-    "log"
+    "fmt"
     "math/rand"
 )
 
+const VERBOSE = true
+
+// Object that represents the Layer of the network
 type Layer struct {
-    values []float64 `json:"values"`
-    bias []float64   `json:"bias"`
-    deltas []float64 `json:"deltas"`
-    weights [][]float64 `json:"weights"`
-    n_nodes int         `json:"n_nodes"`
-    n_synapses int      `json:"n_synapses"`
+    Values []float64    `json:"values"`
+    Bias []float64      `json:"bias"`
+    Deltas []float64    `json:"deltas"`
+    Weights [][]float64 `json:"weights"`
+    N_nodes int         `json:"n_nodes"`
+    N_synapses int      `json:"n_synapses"`
 }
 
+// Layer object constructor method
 func NewLayer (size, parent_size int) Layer {
     layer := Layer {
-        values: make([]float64, size),
-        bias: make([]float64, size),
-        deltas: make([]float64, size),
-        weights: make([][]float64, parent_size),
-        n_nodes: size,
-        n_synapses: parent_size,
+        Values: make([]float64, size),
+        Bias: make([]float64, size),
+        Deltas: make([]float64, size),
+        Weights: make([][]float64, parent_size),
+        N_nodes: size,
+        N_synapses: parent_size,
     }
     for i:=0; i<size; i++ {
-        layer.values[i] = rand.Float64()
-        layer.bias[i] = rand.Float64()
+        layer.Values[i] = rand.Float64()
+        layer.Bias[i] = rand.Float64()
     }
-    // initialize weights matrix
-    for i := range layer.weights {
-        layer.weights[i] = make([]float64, size)
+    // initialize Weights matrix
+    for i := range layer.Weights {
+        layer.Weights[i] = make([]float64, size)
     }
     for i:=0; i<size; i++ {
         for j:=0; j<parent_size;j++ {
-            layer.weights[j][i] = rand.Float64()
+            layer.Weights[j][i] = rand.Float64()
         }
     }
     return layer
 }
 
-type LogFunc func (float64) float64
-
+// Object that represents the NN. Holds the Layers and settings.
 type NeuralNetwork struct {
-    input_layer Layer `json:"input_layer"`
-    hidden_layer []Layer `json:"hidden_layer"`
-    output_layer Layer `json:"output_layer"`
-    learning_rate float64 `json:"output_layer"`
-    
-    nonlinear_method string `json:"output_layer"`
-    nonlinear_function LogFunc
-    d_nonlinear_function LogFunc
+    Input_layer Layer       `json:"input_layer"`
+    Hidden_layer []Layer    `json:"hidden_layers"`
+    Output_layer Layer      `json:"output_layer"`
+    Learning_rate float64   `json:"learning_rate"`
+    Nonlinear_method string `json:"nonlinear_method"`
+    nonlinear_function func (float64) float64
+    d_nonlinear_function func (float64) float64
 }
 
-// Create a new Neural Network
+// The NeuralNetwork constructor method.
 func NewNeuralNetwork (input_size,
                        output_size int,
                        hidden_sizes []int,
                        method string,
                       ) NeuralNetwork {
     nn := NeuralNetwork {
-        input_layer: NewLayer(input_size, 0),
-        hidden_layer: make([]Layer, len(hidden_sizes)),
-        learning_rate: 0.05,
-        nonlinear_method: method,
+        Input_layer: NewLayer(input_size, 0),
+        Hidden_layer: make([]Layer, len(hidden_sizes)),
+        Learning_rate: 0.05,
+        Nonlinear_method: method,
     }
     parent_size := input_size
     for i := range hidden_sizes {
-        nn.hidden_layer[i] = NewLayer(hidden_sizes[i], parent_size)
+        nn.Hidden_layer[i] = NewLayer(hidden_sizes[i], parent_size)
         parent_size = hidden_sizes[i]
     }
-    nn.output_layer = NewLayer(output_size, parent_size)
+    nn.Output_layer = NewLayer(output_size, parent_size)
+    nn.Setup_method(method)
+    return nn
+}
+
+// Feed inputs to forward through the network
+func (nn *NeuralNetwork) Set_inputs (inputs []float64) {
+    for i := range inputs {
+        nn.Input_layer.Values[i] = inputs[i]
+    }
+}
+
+// Setup the logistical and derivative function to be used.
+func (nn *NeuralNetwork) Setup_method (method string) {
+    nn.Nonlinear_method = method
     switch method {
         case "leaky_relu":
             nn.nonlinear_function = leaky_relu
@@ -95,60 +112,52 @@ func NewNeuralNetwork (input_size,
         default:
             panic("Invalid method: " + method)
     }
-    return nn
 }
-                           
-// Feed inputs to forward through the network
-func (nn *NeuralNetwork) Set_inputs (inputs []float64) {
-    for i := range inputs {
-        nn.input_layer.values[i] = inputs[i]
-    }
-}
-            
+
 // Set up the learning rate
 func (nn *NeuralNetwork) Set_learning_rate (rate float64) {
-    nn.learning_rate = rate
+    nn.Learning_rate = rate
 }
 
 // The activation function
 func (nn *NeuralNetwork) activation_function (source, target Layer) {
     var activation float64
-    source_length := len(source.values)
-    for j:=0; j<len(target.values); j++ {
-        activation = target.bias[j]
+    source_length := len(source.Values)
+    for j:=0; j<len(target.Values); j++ {
+        activation = target.Bias[j]
         for i:=0; i<source_length; i++ {
-            activation += (source.values[i] * target.weights[i][j])
+            activation += (source.Values[i] * target.Weights[i][j])
         }
-        target.values[j] = nn.nonlinear_function(activation)
+        target.Values[j] = nn.nonlinear_function(activation)
     }
 }
 
 // Calculate the Deltas
-func (nn *NeuralNetwork) calc_deltas (source, target Layer) {
+func (nn *NeuralNetwork) calc_Deltas (source, target Layer) {
     var errors float64
-    for j := range target.values {
+    for j := range target.Values {
         errors = 0.0
-        for k := range source.values {
-            errors += (source.deltas[k] * source.weights[j][k])
+        for k := range source.Values {
+            errors += (source.Deltas[k] * source.Weights[j][k])
         }
-        target.deltas[j] = (errors * nn.d_nonlinear_function(target.values[j]))
+        target.Deltas[j] = (errors * nn.d_nonlinear_function(target.Values[j]))
     }
 }
 
 // Calculate the delta for the output layer
 func (nn *NeuralNetwork) calc_loss (expected []float64) {
-    for i := range nn.output_layer.values {
-        errors := (expected[i] - nn.output_layer.values[i])
-        nn.output_layer.deltas[i] = (errors * nn.d_nonlinear_function(nn.output_layer.values[i]))
+    for i := range nn.Output_layer.Values {
+        errors := (expected[i] - nn.Output_layer.Values[i])
+        nn.Output_layer.Deltas[i] = (errors * nn.d_nonlinear_function(nn.Output_layer.Values[i]))
     }
 }
 
-// Update the weights of the synapses
-func (nn *NeuralNetwork) update_weights (source, target Layer) {
-    for j := range source.values {
-        source.bias[j] += (source.deltas[j] * nn.learning_rate)
-        for k := range target.values {
-            source.weights[k][j] += (target.values[k] * source.deltas[j] * nn.learning_rate)
+// Update the Weights of the synapses
+func (nn *NeuralNetwork) update_Weights (source, target Layer) {
+    for j := range source.Values {
+        source.Bias[j] += (source.Deltas[j] * nn.Learning_rate)
+        for k := range target.Values {
+            source.Weights[k][j] += (target.Values[k] * source.Deltas[j] * nn.Learning_rate)
         }
     }
 }
@@ -156,37 +165,37 @@ func (nn *NeuralNetwork) update_weights (source, target Layer) {
 // NN Activation step
 func (nn *NeuralNetwork) Forward_pass () {
     var j int = 0
-    nn.activation_function(nn.input_layer, nn.hidden_layer[j])
-    for j < len(nn.hidden_layer)-1 {
-        nn.activation_function(nn.hidden_layer[j],
-                            nn.hidden_layer[j+1])
+    nn.activation_function(nn.Input_layer, nn.Hidden_layer[j])
+    for j < len(nn.Hidden_layer)-1 {
+        nn.activation_function(nn.Hidden_layer[j],
+                            nn.Hidden_layer[j+1])
         j++
     }
-    nn.activation_function(nn.hidden_layer[j], nn.output_layer)
+    nn.activation_function(nn.Hidden_layer[j], nn.Output_layer)
 }
 
 // Backpropagation learning process
 func (nn *NeuralNetwork) Back_propagation (outputs []float64) {
-    var last_hidden_layer, k int
-    // calculate the deltas
-    last_hidden_layer = len(nn.hidden_layer)-1
-    k = last_hidden_layer
+    var last_Hidden_layer, k int
+    // calculate the Deltas
+    last_Hidden_layer = len(nn.Hidden_layer)-1
+    k = last_Hidden_layer
     // From output layer to the last of the hidden layers
-    nn.calc_deltas(nn.output_layer, nn.hidden_layer[k])
+    nn.calc_Deltas(nn.Output_layer, nn.Hidden_layer[k])
     // Run though the hidden layers. If theres more than 1.
     for k > 0 {
-        nn.calc_deltas(nn.hidden_layer[k], nn.hidden_layer[k-1])
+        nn.calc_Deltas(nn.Hidden_layer[k], nn.Hidden_layer[k-1])
         k -= 1
     }
-    // Update weights and bias
-    k = last_hidden_layer
-    nn.update_weights(nn.output_layer, nn.hidden_layer[k])
+    // Update Weights and Bias
+    k = last_Hidden_layer
+    nn.update_Weights(nn.Output_layer, nn.Hidden_layer[k])
     for k > 0 {
-        nn.update_weights(nn.hidden_layer[k], nn.hidden_layer[k-1])
+        nn.update_Weights(nn.Hidden_layer[k], nn.Hidden_layer[k-1])
         k -= 1
     }
     // from output to hidden layer
-    nn.update_weights(nn.hidden_layer[k], nn.input_layer)
+    nn.update_Weights(nn.Hidden_layer[k], nn.Input_layer)
 }
 
 // Train the neural network
@@ -206,9 +215,11 @@ func (nn *NeuralNetwork) Train (inputs, outputs [][]float64, n_epochs int) {
             nn.Set_inputs(inputs[i])
             nn.Forward_pass()
             // Show results
-            log.Println("Input: ", inputs[i],
-                        "Expected: ", outputs[i],
-                        "Output: ", nn.output_layer.values)
+            if VERBOSE {
+                fmt.Println("Input: ", inputs[i],
+                            "Expected: ", outputs[i],
+                            "Output: ", nn.Output_layer.Values)
+            }
             // Learning
             nn.calc_loss(outputs[i])
             nn.Back_propagation(outputs[i])
@@ -220,7 +231,7 @@ func (nn *NeuralNetwork) Train (inputs, outputs [][]float64, n_epochs int) {
 func (nn *NeuralNetwork) Predict (inputs []float64) []float64{
     nn.Set_inputs(inputs)
     nn.Forward_pass()
-    return nn.output_layer.values
+    return nn.Output_layer.Values
 }
 
 
