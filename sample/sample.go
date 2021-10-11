@@ -21,7 +21,7 @@ func main () {
     nn := nngolib.NewNeuralNetwork(len(inputs[0]),
                                    len(outputs[0]),
                                    hidden_sizes,
-                                   "sigmoid")
+                                   "leaky_relu")
     // start training
     iteractions := 10000
     nn.Train(inputs, outputs, iteractions)

@@ -133,7 +133,7 @@ func (nn *NeuralNetwork) activation_function (source, target Layer) {
 }
 
 // Calculate the Deltas
-func (nn *NeuralNetwork) calc_Deltas (source, target Layer) {
+func (nn *NeuralNetwork) calc_deltas (source, target Layer) {
     var errors float64
     for j := range target.Values {
         errors = 0.0
@@ -153,7 +153,7 @@ func (nn *NeuralNetwork) calc_loss (expected []float64) {
 }
 
 // Update the Weights of the synapses
-func (nn *NeuralNetwork) update_Weights (source, target Layer) {
+func (nn *NeuralNetwork) update_weights (source, target Layer) {
     for j := range source.Values {
         source.Bias[j] += (source.Deltas[j] * nn.Learning_rate)
         for k := range target.Values {
@@ -174,28 +174,21 @@ func (nn *NeuralNetwork) Forward_pass () {
     nn.activation_function(nn.Hidden_layer[j], nn.Output_layer)
 }
 
-// Backpropagation learning process
+// Backpropagation learning process. Compute the Deltas and update Weights
 func (nn *NeuralNetwork) Back_propagation (outputs []float64) {
-    var last_Hidden_layer, k int
-    // calculate the Deltas
-    last_Hidden_layer = len(nn.Hidden_layer)-1
-    k = last_Hidden_layer
+    var k int
+    k = len(nn.Hidden_layer)-1
     // From output layer to the last of the hidden layers
-    nn.calc_Deltas(nn.Output_layer, nn.Hidden_layer[k])
+    nn.calc_deltas(nn.Output_layer, nn.Hidden_layer[k])
+    nn.update_weights(nn.Output_layer, nn.Hidden_layer[k])
     // Run though the hidden layers. If theres more than 1.
     for k > 0 {
-        nn.calc_Deltas(nn.Hidden_layer[k], nn.Hidden_layer[k-1])
-        k -= 1
-    }
-    // Update Weights and Bias
-    k = last_Hidden_layer
-    nn.update_Weights(nn.Output_layer, nn.Hidden_layer[k])
-    for k > 0 {
-        nn.update_Weights(nn.Hidden_layer[k], nn.Hidden_layer[k-1])
+        nn.calc_deltas(nn.Hidden_layer[k], nn.Hidden_layer[k-1])
+        nn.update_weights(nn.Hidden_layer[k], nn.Hidden_layer[k-1])
         k -= 1
     }
     // from output to hidden layer
-    nn.update_Weights(nn.Hidden_layer[k], nn.Input_layer)
+    nn.update_weights(nn.Hidden_layer[k], nn.Input_layer)
 }
 
 // Train the neural network
